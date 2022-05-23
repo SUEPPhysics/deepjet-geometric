@@ -9,6 +9,7 @@ from torch import nn
 from deepjet_geometric.datasets import SUEPV1
 from Disco import distance_corr
 from SUEPNet import Net
+from utils import Plotting
 
 parser = argparse.ArgumentParser(description='Test.')
 parser.add_argument('--config', action='store', type=str, help='Input configuration.')
@@ -26,6 +27,7 @@ if os.path.isdir(out_dir):
         print("This directory already exists. Make a new name.")
         sys.exit()
 os.system("mkdir " + out_dir)
+plot = Plotting(save_dir=out_dir)
     
 # input configuration
 config = yaml.safe_load(open(args.config))
@@ -91,7 +93,7 @@ def train():
         total_loss_disco += loss_disco.item()
 
         optimizer.step()
-
+        
     total_loss /= len(train_loader.dataset)
     total_loss1 /= len(train_loader.dataset)
     total_loss2 /= len(train_loader.dataset)
@@ -123,65 +125,63 @@ def test():
             bkgnn2 = out[0][:,1]
             bkgnn2 = bkgnn2[(data.y==0)]
 
-            loss_disco = config['training_pref']['lamdba_disco']**distance_corr(bkgnn1,bkgnn2) 
+            loss_disco = config['training_pref']['lambda_disco']**distance_corr(bkgnn1,bkgnn2) 
             loss = loss1 + loss2 + loss_disco
             
             total_loss += loss.item()
             total_loss1 += loss1.item()
             total_loss2 += loss2.item()
             total_loss_disco += loss_disco.item()
-
         
-    total_loss /= len(train_loader.dataset)
-    total_loss1 /= len(train_loader.dataset)
-    total_loss2 /= len(train_loader.dataset)
-    total_loss_disco /= len(train_loader.dataset)
+    total_loss /= len(test_loader.dataset)
+    total_loss1 /= len(test_loader.dataset)
+    total_loss2 /= len(test_loader.dataset)
+    total_loss_disco /= len(test_loader.dataset)
     
     return total_loss, [total_loss1, total_loss2, total_loss_disco]
 
 
-loss_train, loss_val = torch.empty(1, 0), torch.empty(1, 0)
-partial_losses_train, partial_losses_val = torch.empty(3, 0), torch.empty(3, 0)
+loss_train, loss_val = None, None
+partial_losses_train, partial_losses_val = None, None
 for epoch in range(0, 50):
     
+    # training
     e_loss_train, e_partial_losses_train = train()
     
-    # debug
-    print()
-    print(epoch, e_loss, e_loss_val)
-    print()
-    
-    loss_train = torch.cat((loss_train, e_loss_train), 1)
-    partial_losses_train = torch.cat((partial_losses_train, e_partial_losses_train), 1)
+    if epoch == 0:
+        loss_train = np.array([e_loss_train])
+        partial_losses_train = np.array(e_partial_losses_train)
+    else:
+        loss_train = np.append(loss_train, e_loss_train)
+        partial_losses_train = np.vstack((partial_losses_train, e_partial_losses_train))
     
     scheduler.step()
     
+    # validation
     e_loss_val, e_partial_losses_val = test()
-    loss_val = torch.cat((loss_val, e_loss_val), 1)
-    partial_losses_val = torch.cat((partial_losses_val, e_partial_losses_val), 1)
-
-    # debug
-    print()
-    print(epoch, e_loss, e_loss_val)
-    print()
+    if epoch == 0:
+        loss_val = np.array([e_loss_val])
+        partial_losses_val = np.array(e_partial_losses_val)
+    else:
+        loss_val = np.append(loss_val, e_loss_val)
+        partial_losses_val = np.vstack((partial_losses_val, e_partial_losses_val))
     
     print('Epoch {:03d}, Loss: {:.8f}, ValLoss: {:.8f}'.format(epoch, e_loss_train, e_loss_val))
 
+    # save model each epoch
     state_dicts = {'model':suep.state_dict(),
                    'opt':optimizer.state_dict(),
                    'lr':scheduler.state_dict()} 
-
     torch.save(state_dicts, os.path.join(out_dir, 'epoch-{}.pt'.format(epoch)))
     
-    # update loss, metrics plots
+    # update loss plots
     keys = ['Total Loss: C1 + C2 + DiSco']
-    plot.draw_loss(train_loss.cpu().numpy(),
-                   val_loss.cpu().numpy(),
-                   name,
+    plot.draw_loss([loss_train],
+                   [loss_val],
+                   'total',
                    keys=keys)
-    
     keys = ['Classifier 1', 'CLassifier 2', 'DiSco']
-    plot.draw_loss(train_loss.cpu().numpy(),
-                   val_loss.cpu().numpy(),
-                   name,
+    plot.draw_loss(partial_losses_train.T,
+                   partial_losses_val.T,
+                   'partials',
                    keys=keys)
