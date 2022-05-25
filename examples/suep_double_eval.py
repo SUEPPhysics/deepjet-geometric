@@ -50,7 +50,8 @@ print("Running on", device)
 #model = DataParallel(model)
 
 # initilize empty model, optimizer, scheduler like in training script
-suep = Net().to(device)
+suep = Net(out_dim=config['model_pref']['out_dim'], 
+           hidden_dim=config['model_pref']['hidden_dim']).to(device)
 optimizer = torch.optim.Adam(suep.parameters(), lr=config['training_pref']['learning_rate'])
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 
                                             config['training_pref']['step_size'], 
@@ -81,10 +82,6 @@ def evaluate():
             nn2 = out[0][:,1]
             nn1 = sigmoid(nn1)
             nn2 = sigmoid(nn2)
-            
-            # debug
-            print(nn1)
-            print(nn2)
 
             # store predictions from each classifier and true class per event
             if counter == 1: 
@@ -97,9 +94,9 @@ def evaluate():
                                     data.y.cpu().numpy()])
                 results = np.hstack((results, batch_results))
                 
-            # debug
+                
             if counter > 10: break
-    
+
     return results
 
    

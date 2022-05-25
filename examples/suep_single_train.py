@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from torch_geometric.data import DataLoader
 from torch import nn
+from torch_geometric.nn import DataParallel
 
 from deepjet_geometric.datasets import SUEPV1
 from Disco import distance_corr
@@ -45,9 +46,9 @@ test_loader = DataLoader(data_test, batch_size=config['training_pref']['batch_si
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print("Running on", device)
 
-#model = DataParallel(model)
-
-suep = Net().to(device)
+suep = Net(out_dim=config['model_pref']['out_dim'], 
+           hidden_dim=config['model_pref']['hidden_dim']).to(device)
+#suep = DataParallel(suep)
 #suep.load_state_dict(torch.load(model_dir+"epoch-32.pt")['model'])
 optimizer = torch.optim.Adam(suep.parameters(), lr=config['training_pref']['learning_rate'])
 #optimizer = torch.optim.Adam(disco.parameters(), lr=0.001)
@@ -57,13 +58,12 @@ scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
                                             config['training_pref']['gamma'])
 #scheduler.load_state_dict(torch.load(model_dir+"epoch-32.pt")['lr'])
 
-def train():
+def train(epoch):
     suep.train()
     counter = 0
 
     total_loss = 0
     total_loss1 = 0
-    total_loss2 = 0
     total_loss_disco = 0
     for data in train_loader:
         counter += 1
@@ -75,38 +75,57 @@ def train():
                     data.x_pf_batch)
 
         # ABCDisco loss start
-        loss1 = nn.BCEWithLogitsLoss()(torch.squeeze(out[0][:,0]).view(-1),data.y.float())
-        loss2 = nn.BCEWithLogitsLoss()(torch.squeeze(out[0][:,1]).view(-1),data.y.float())
+        loss1 = nn.BCEWithLogitsLoss(reduction='mean')(torch.squeeze(out[0][:,0]).view(-1),data.y.float())
         
         bkgnn1 = out[0][:,0]
         bkgnn1 = bkgnn1[(data.y==0)]
-        bkgnn2 = out[0][:,1]
-        bkgnn2 = bkgnn2[(data.y==0)]
-        loss_disco = config['training_pref']['lambda_disco']*distance_corr(bkgnn1,bkgnn2)
-        loss = loss1 + loss2 + loss_disco
+        ntracks = torch.cuda.FloatTensor([np.count_nonzero(data.x.cpu().numpy()[x,:,0]) for x in range(data.x.shape[0])])
+        bkgtracks = ntracks[(data.y==0)]
+        sigmoid = torch.nn.Sigmoid()
+        bkgnn1 = sigmoid(bkgnn1)
+        
+        loss_disco = config['training_pref']['lambda_disco']*distance_corr(bkgnn1,bkgtracks)
+        loss = loss1 + loss_disco
         # ABCDisco loss end
+        
+        # debug
+        sigmoid = torch.nn.Sigmoid()
+        nn1 = out[0][:,0]
+        nn1 = sigmoid(nn1)
+        preds1 = (nn1>0.5)
+        TP1 = torch.sum(preds1*data.y)
+        T = torch.sum(data.y)
+        P1 = torch.sum(preds1)
+        print()
+        print("Total Loss", loss.item(), "DiSco Loss", loss_disco.item())
+        print("Recall", TP1.item()/T.item())
+        print("Precision", end=" ")
+        if P1.item() > 0:
+            print(TP1.item()/P1.item(), end=" ")
+        else:
+            print("nan", end=" ")
+        print()
+        # debug
 
         loss.backward()
-        total_loss += loss.item()
-        total_loss1 += loss1.item()
-        total_loss2 += loss2.item()
-        total_loss_disco += loss_disco.item()
-
         optimizer.step()
         
-    total_loss /= len(train_loader.dataset)
-    total_loss1 /= len(train_loader.dataset)
-    total_loss2 /= len(train_loader.dataset)
-    total_loss_disco /= len(train_loader.dataset)
+        total_loss += loss.item()
+        total_loss1 += loss1.item()
+        total_loss_disco += loss_disco.item()
+        
+    # normalize by number of batches
+    total_loss /= counter
+    total_loss1 /= counter
+    total_loss_disco /= counter
     
-    return total_loss, [total_loss1, total_loss2, total_loss_disco]
+    return total_loss, [total_loss1, total_loss_disco]
 
 @torch.no_grad()
 def test():
     suep.eval()
     total_loss = 0
     total_loss1 = 0
-    total_loss2 = 0
     total_loss_disco = 0
     counter = 0
     for data in test_loader:
@@ -117,36 +136,38 @@ def test():
             out = suep(data.x_pf,
                        data.x_pf_batch)
 
-            loss1 = nn.BCEWithLogitsLoss()(torch.squeeze(out[0][:,0]).view(-1),data.y.float())
-            loss2 = nn.BCEWithLogitsLoss()(torch.squeeze(out[0][:,1]).view(-1),data.y.float())
+            # ABCDisco loss start
+            loss1 = nn.BCEWithLogitsLoss(reduction='mean')(torch.squeeze(out[0][:,0]).view(-1),data.y.float())
 
             bkgnn1 = out[0][:,0]
             bkgnn1 = bkgnn1[(data.y==0)]
-            bkgnn2 = out[0][:,1]
-            bkgnn2 = bkgnn2[(data.y==0)]
+            ntracks = torch.cuda.FloatTensor([np.count_nonzero(data.x[x,:,0]) for x in range(data.x.shape[0])])
+            bkgtracks = ntracks[(data.y==0)]
+            sigmoid = torch.nn.Sigmoid()
+            bkgnn1 = sigmoid(bkgnn1)
 
-            loss_disco = config['training_pref']['lambda_disco']**distance_corr(bkgnn1,bkgnn2) 
+            loss_disco = config['training_pref']['lambda_disco']*distance_corr(bkgnn1,bkgtracks)
             loss = loss1 + loss2 + loss_disco
+            # ABCDisco loss end
             
             total_loss += loss.item()
             total_loss1 += loss1.item()
-            total_loss2 += loss2.item()
             total_loss_disco += loss_disco.item()
         
-    total_loss /= len(test_loader.dataset)
-    total_loss1 /= len(test_loader.dataset)
-    total_loss2 /= len(test_loader.dataset)
-    total_loss_disco /= len(test_loader.dataset)
+    # normalize by number of batches
+    total_loss /= counter
+    total_loss1 /= counter
+    total_loss_disco /= counter
     
-    return total_loss, [total_loss1, total_loss2, total_loss_disco]
+    return total_loss, [total_loss1, total_loss_disco]
 
 
 loss_train, loss_val = None, None
 partial_losses_train, partial_losses_val = None, None
-for epoch in range(0, 50):
+for epoch in range(0, config['training_pref']['max_epochs']):
     
     # training
-    e_loss_train, e_partial_losses_train = train()
+    e_loss_train, e_partial_losses_train = train(epoch)
     
     if epoch == 0:
         loss_train = np.array([e_loss_train])
@@ -175,12 +196,12 @@ for epoch in range(0, 50):
     torch.save(state_dicts, os.path.join(out_dir, 'epoch-{}.pt'.format(epoch)))
     
     # update loss plots
-    keys = ['Total Loss: C1 + C2 + DiSco']
+    keys = ['Total Loss: C1 + DiSco']
     plot.draw_loss([loss_train],
                    [loss_val],
                    'total',
                    keys=keys)
-    keys = ['Classifier 1', 'CLassifier 2', 'DiSco']
+    keys = ['Classifier 1', 'DiSco']
     plot.draw_loss(partial_losses_train.T,
                    partial_losses_val.T,
                    'partials',

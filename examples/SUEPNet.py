@@ -6,10 +6,11 @@ from torch.nn import Sequential, Linear
 from torch_geometric.nn import DataParallel
 
 class Net(nn.Module):
-    def __init__(self):
+    def __init__(self, out_dim=1, hidden_dim=16):
         super(Net, self).__init__()
         
-        hidden_dim = 16
+        # hidden_dim = 16
+        # out_dim = 2
         
         self.pf_encode = nn.Sequential(
             nn.Linear(4, hidden_dim),
@@ -28,7 +29,7 @@ class Net(nn.Module):
             nn.ELU(),
             nn.Linear(8, 4),
             nn.ELU(),
-            nn.Linear(4, 2)
+            nn.Linear(4, out_dim)
             #nn.Sigmoid()    
             )
         
@@ -40,9 +41,10 @@ class Net(nn.Module):
         
         # create a representation of PFs to PFs
         feats1 = self.conv(x=(x_pf_enc, x_pf_enc), batch=(batch_pf, batch_pf))
+        feats2 = self.conv(x=(feats1, feats1), batch=(batch_pf, batch_pf))
 
         batch = batch_pf
-        out, batch = avg_pool_x(batch, feats1, batch)
+        out, batch = avg_pool_x(batch, feats2, batch)
         
         out = self.output(out)
         
