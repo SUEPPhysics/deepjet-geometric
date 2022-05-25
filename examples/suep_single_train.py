@@ -141,7 +141,7 @@ def test():
 
             bkgnn1 = out[0][:,0]
             bkgnn1 = bkgnn1[(data.y==0)]
-            ntracks = torch.cuda.FloatTensor([np.count_nonzero(data.x[x,:,0]) for x in range(data.x.shape[0])])
+            ntracks = torch.cuda.FloatTensor([np.count_nonzero(data.x.cpu().numpy()[x,:,0]) for x in range(data.x.shape[0])])
             bkgtracks = ntracks[(data.y==0)]
             sigmoid = torch.nn.Sigmoid()
             bkgnn1 = sigmoid(bkgnn1)

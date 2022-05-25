@@ -1,0 +1,28 @@
+---
+dataset:
+ train:
+  - /work/tier3/bmaier/suep/gnn/files/v1
+ validation:
+  - /work/tier3/bmaier/suep/gnn/files/v1/val/
+ test:
+  - /work/tier3/bmaier/suep/gnn/files/v1/val/
+
+model_pref:
+ hidden_dim: 16
+ out_dim: 2
+
+training_pref:
+ lambda_disco: 1
+ batch_size_train: 512
+ batch_size_validation: 1024
+ max_epochs: 100
+ learning_rate: 0.001
+ step_size: 20
+ gamma: 0.5
+
+evaluation_pref:
+ batch_size: 50
+ names_classes:
+  - 'SUEP'
+  - 'QCD'
+ workers: 0
