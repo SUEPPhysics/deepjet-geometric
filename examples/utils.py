@@ -176,25 +176,24 @@ class Plotting():
 #         plt.close(fig)
 #         return results_ap, results_pr3, results_pr5
 
-    def draw_precision_recall(self, results,
+    def draw_precision_recall(self, 
+                            y_preds,
+                            y_test,
                             name='',
                             keys=['Model 1', 'Model 2']):
         
-        y_test = results[2]
-        y_pred1 = results[0]
-        y_pred2 = results[1]
-        pre1, rec1, _ = precision_recall_curve(y_test, y_pred1)
-        pre2, rec2, _ = precision_recall_curve(y_test, y_pred2)
-
         fig = plt.figure()
         ax = fig.subplots()
-        ax.plot(rec1, pre1, label=keys[0], color='blue')
-        ax.plot(rec2, pre2, label=keys[1], color='magenta')
+        cmap = plt.cm.jet(np.linspace(0, 1, len(keys)+1))
+        
+        for key, y_pred, color in zip(keys, y_preds, cmap):
+            pre, rec, _ = precision_recall_curve(y_test, y_pred)
+            ax.plot(rec, pre, label=keys[0], color=color)
+            
         ax.set_xlabel("Precision")
         ax.set_ylabel("Recall")
         ax.set_title("Precision-Recall")
         ax.legend()
-        
         fig.tight_layout()
         fig.savefig('{}/precision-recall-curve-{}'.format(self.save_dir, name), bbox_inches='tight')
         plt.close(fig)
@@ -203,9 +202,7 @@ class Plotting():
                    name='', 
                    keys=['Model 1', 'Model 2']):
         """ Plots results for double disco """
-        
-        results = results
-        
+                
         with open('{}/disco_results.npy'.format(self.save_dir), 'wb') as f:
             np.save(f, results)
         
@@ -233,7 +230,7 @@ class Plotting():
         fig.tight_layout()
         fig.suptitle("Model "+ name)
         
-        fig.savefig('{}/single-disco-reults-{}.png'.format(self.save_dir, name))
+        fig.savefig('{}/disco-reults-{}.png'.format(self.save_dir, name))
         plt.close(fig)
 
     def draw_precision_details(self, gt, fpn, twn, int8, jet_names, nbins=11):

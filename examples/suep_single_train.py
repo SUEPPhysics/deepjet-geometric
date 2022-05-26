@@ -147,7 +147,7 @@ def test():
             bkgnn1 = sigmoid(bkgnn1)
 
             loss_disco = config['training_pref']['lambda_disco']*distance_corr(bkgnn1,bkgtracks)
-            loss = loss1 + loss2 + loss_disco
+            loss = loss1 + loss_disco
             # ABCDisco loss end
             
             total_loss += loss.item()

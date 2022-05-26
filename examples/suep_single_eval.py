@@ -12,7 +12,7 @@ from Disco import distance_corr
 from utils import Plotting
 
 parser = argparse.ArgumentParser(description='Test.')
-parser.add_argument('--name', action='store', type=str, help='Input configuration name. Should match the option --out in suep_train.py')
+parser.add_argument('--name', action='store', required=True, type=str, help='Input configuration name. Should match the option --out in suep_train.py')
 parser.add_argument('--epoch', action='store', default=-1, type=int, help='Which epoch to load. Leave unspecified for last epoch.')
 args = parser.parse_args()
 out_dir = args.name+"/"
@@ -79,21 +79,21 @@ def evaluate():
             # normalize the outputs
             sigmoid = torch.nn.Sigmoid()
             nn1 = out[0][:,0]
-            nn2 = out[0][:,1]
             nn1 = sigmoid(nn1)
-            nn2 = sigmoid(nn2)
+            
+            # count number of tracks in each event
+            ntracks = torch.cuda.FloatTensor([np.count_nonzero(data.x.cpu().numpy()[x,:,0]) for x in range(data.x.shape[0])])
 
             # store predictions from each classifier and true class per event
             if counter == 1: 
                 results = np.array([nn1.cpu().numpy(), 
-                                    nn2.cpu().numpy(), 
+                                    ntracks.cpu().numpy(),
                                     data.y.cpu().numpy()])
             else:    
                 batch_results = np.array([nn1.cpu().numpy(), 
-                                    nn2.cpu().numpy(), 
+                                    ntracks.cpu().numpy(),
                                     data.y.cpu().numpy()])
                 results = np.hstack((results, batch_results))
-                
                 
     return results
 
@@ -107,4 +107,4 @@ plot.draw_precision_recall(results,
                           ['Model 1', 'Model 2'])
 plot.draw_disco(results, 
                 'ParticleNet', 
-                ['Model 1', 'Model 2'])
+                ['Model 1', '# Tracks'])
