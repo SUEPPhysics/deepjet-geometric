@@ -186,10 +186,14 @@ class Plotting():
         ax = fig.subplots()
         cmap = plt.cm.jet(np.linspace(0, 1, len(keys)+1))
         
-        for key, y_pred, color in zip(keys, y_preds, cmap):
-            pre, rec, _ = precision_recall_curve(y_test, y_pred)
-            ax.plot(rec, pre, label=keys[0], color=color)
-            
+        if len(y_preds) == len(y_test):
+            pre, rec, _ = precision_recall_curve(y_test, y_preds)
+            ax.plot(rec, pre, label=keys[0], color=cmap[0])
+        else:   
+            for key, y_pred, color in zip(keys, y_preds, cmap):
+                pre, rec, _ = precision_recall_curve(y_test, y_pred)
+                ax.plot(rec, pre, label=key, color=color)
+
         ax.set_xlabel("Precision")
         ax.set_ylabel("Recall")
         ax.set_title("Precision-Recall")
@@ -200,7 +204,9 @@ class Plotting():
 
     def draw_disco(self, results, 
                    name='', 
-                   keys=['Model 1', 'Model 2']):
+                   keys=['Model 1', 'Model 2'],
+                   xlim=[0,1],
+                   ylim=[0,1]):
         """ Plots results for double disco """
                 
         with open('{}/disco_results.npy'.format(self.save_dir), 'wb') as f:
@@ -220,12 +226,12 @@ class Plotting():
         qcd_1 = results[0][results[2] == 0]
         qcd_2 = results[1][results[2] == 0]
         
-        ax.hist2d(suep_1, suep_2, bins=[np.linspace(0,1,20), np.linspace(0,1,20)], label='SUEP')
-        ax2.hist2d(qcd_1, qcd_2, bins=[np.linspace(0,1,20), np.linspace(0,1,20)], label='QCD')
-        ax.set_xlim(0,1)
-        ax2.set_xlim(0,1)
-        ax.set_ylim(0,1)
-        ax2.set_ylim(0,1)
+        ax.hist2d(suep_1, suep_2, bins=[np.linspace(xlim[0],xlim[1],40), np.linspace(ylim[0],ylim[1],40)], label='SUEP')
+        ax2.hist2d(qcd_1, qcd_2, bins=[np.linspace(xlim[0],xlim[1],40), np.linspace(ylim[0],ylim[1],40)], label='QCD')
+        ax.set_xlim(xlim[0],xlim[1])
+        ax2.set_xlim(xlim[0],xlim[1])
+        ax.set_ylim(ylim[0],ylim[1])
+        ax2.set_ylim(ylim[0],ylim[1])
         
         fig.tight_layout()
         fig.suptitle("Model "+ name)
