@@ -12,10 +12,10 @@ model_pref:
  out_dim: 2
 
 training_pref:
- lambda_disco: 1
+ lambda_disco: 5
  batch_size_train: 512
  batch_size_validation: 1024
- max_epochs: 100
+ max_epochs: 50
  learning_rate: 0.001
  step_size: 20
  gamma: 0.5

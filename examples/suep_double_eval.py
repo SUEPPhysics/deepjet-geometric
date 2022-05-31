@@ -93,8 +93,7 @@ def evaluate():
                                     nn2.cpu().numpy(), 
                                     data.y.cpu().numpy()])
                 results = np.hstack((results, batch_results))
-                
-                
+                            
     return results
 
    
@@ -102,7 +101,8 @@ def evaluate():
 results = evaluate()
 
 # make some plots
-plot.draw_precision_recall(results,
+plot.draw_precision_recall(results[0:2],
+                           results[2],
                           'ParticleNet',
                           ['Model 1', 'Model 2'])
 plot.draw_disco(results, 

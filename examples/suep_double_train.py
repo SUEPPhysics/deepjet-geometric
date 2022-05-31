@@ -93,6 +93,12 @@ def train(epoch):
         loss_disco = config['training_pref']['lambda_disco']*distance_corr(bkgnn1,bkgnn2)
         loss = loss1 + loss2 + loss_disco
         # ABCDisco loss end
+        
+        # cyclical
+        if epoch % 2 == 0:
+            loss = loss1 + loss2
+        else:
+            loss = loss_disco
 
         loss.backward()
         optimizer.step()
@@ -141,7 +147,8 @@ def test():
             # debug
 
             loss_disco = config['training_pref']['lambda_disco']**distance_corr(bkgnn1,bkgnn2) 
-            loss = loss1 + loss2 + loss_disco
+            
+            loss = loss1+loss2+loss_disco
             
             total_loss += loss.item()
             total_loss1 += loss1.item()
