@@ -87,25 +87,6 @@ def train(epoch):
         loss_disco = config['training_pref']['lambda_disco']*distance_corr(bkgnn1,bkgtracks)
         loss = loss1 + loss_disco
         # ABCDisco loss end
-        
-        # debug
-        sigmoid = torch.nn.Sigmoid()
-        nn1 = out[0][:,0]
-        nn1 = sigmoid(nn1)
-        preds1 = (nn1>0.5)
-        TP1 = torch.sum(preds1*data.y)
-        T = torch.sum(data.y)
-        P1 = torch.sum(preds1)
-        print()
-        print("Total Loss", loss.item(), "DiSco Loss", loss_disco.item())
-        print("Recall", TP1.item()/T.item())
-        print("Precision", end=" ")
-        if P1.item() > 0:
-            print(TP1.item()/P1.item(), end=" ")
-        else:
-            print("nan", end=" ")
-        print()
-        # debug
 
         loss.backward()
         optimizer.step()

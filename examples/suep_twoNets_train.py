@@ -46,20 +46,24 @@ test_loader = DataLoader(data_test, batch_size=config['training_pref']['batch_si
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print("Running on", device)
 
-suep = Net(out_dim=config['model_pref']['out_dim'], 
+suep1 = Net(out_dim=config['model_pref']['out_dim'], 
            hidden_dim=config['model_pref']['hidden_dim']).to(device)
-#suep = DataParallel(suep)
-#suep.load_state_dict(torch.load(model_dir+"epoch-32.pt")['model'])
-optimizer = torch.optim.Adam(suep.parameters(), lr=config['training_pref']['learning_rate'])
-#optimizer = torch.optim.Adam(disco.parameters(), lr=0.001)
-#optimizer.load_state_dict(torch.load(model_dir+"epoch-32.pt")['opt'])
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 
+suep2 = Net(out_dim=config['model_pref']['out_dim'], 
+           hidden_dim=config['model_pref']['hidden_dim']).to(device)
+
+optimizer1 = torch.optim.Adam(suep1.parameters(), lr=config['training_pref']['learning_rate'])
+scheduler1 = torch.optim.lr_scheduler.StepLR(optimizer1, 
                                             config['training_pref']['step_size'], 
                                             config['training_pref']['gamma'])
-#scheduler.load_state_dict(torch.load(model_dir+"epoch-32.pt")['lr'])
+
+optimizer2 = torch.optim.Adam(suep2.parameters(), lr=config['training_pref']['learning_rate'])
+scheduler2 = torch.optim.lr_scheduler.StepLR(optimizer2, 
+                                            config['training_pref']['step_size'], 
+                                            config['training_pref']['gamma'])
 
 def train(epoch):
-    suep.train()
+    suep1.train()
+    suep2.train()
     counter = 0
 
     total_loss = 0
@@ -71,17 +75,20 @@ def train(epoch):
 
         print(str(counter*config['training_pref']['batch_size_train'])+' / '+str(len(train_loader.dataset)),end='\r')
         data = data.to(device)
-        optimizer.zero_grad()
-        out = suep(data.x_pf,
+        optimizer1.zero_grad()
+        optimizer2.zero_grad()
+        out1 = suep1(data.x_pf,
+                    data.x_pf_batch)
+        out2 = suep1(data.x_pf,
                     data.x_pf_batch)
 
         # ABCDisco loss start
-        loss1 = nn.BCEWithLogitsLoss(reduction='mean')(torch.squeeze(out[0][:,0]).view(-1),data.y.float())
-        loss2 = nn.BCEWithLogitsLoss(reduction='mean')(torch.squeeze(out[0][:,1]).view(-1),data.y.float())
+        loss1 = nn.BCEWithLogitsLoss(reduction='mean')(torch.squeeze(out1[0][:,0]).view(-1),data.y.float())
+        loss2 = nn.BCEWithLogitsLoss(reduction='mean')(torch.squeeze(out2[0][:,0]).view(-1),data.y.float())
         
-        bkgnn1 = out[0][:,0]
+        bkgnn1 = out1[0][:,0]
         bkgnn1 = bkgnn1[(data.y==0)]
-        bkgnn2 = out[0][:,1]
+        bkgnn2 = out2[0][:,0]
         bkgnn2 = bkgnn2[(data.y==0)]
         
         # debug
@@ -95,7 +102,8 @@ def train(epoch):
         # ABCDisco loss end
 
         loss.backward()
-        optimizer.step()
+        optimizer1.step()
+        optimizer2.step()
         
         total_loss += loss.item()
         total_loss1 += loss1.item()
@@ -112,7 +120,8 @@ def train(epoch):
 
 @torch.no_grad()
 def test():
-    suep.eval()
+    suep1.eval()
+    suep2.eval()
     total_loss = 0
     total_loss1 = 0
     total_loss2 = 0
@@ -123,15 +132,17 @@ def test():
         print(str(counter*config['training_pref']['batch_size_train'])+' / '+str(len(test_loader.dataset)),end='\r')
         data = data.to(device)
         with torch.no_grad():
-            out = suep(data.x_pf,
+            out1 = suep1(data.x_pf,
+                       data.x_pf_batch)
+            out2 = suep2(data.x_pf,
                        data.x_pf_batch)
 
-            loss1 = nn.BCEWithLogitsLoss()(torch.squeeze(out[0][:,0]).view(-1),data.y.float())
-            loss2 = nn.BCEWithLogitsLoss()(torch.squeeze(out[0][:,1]).view(-1),data.y.float())
+            loss1 = nn.BCEWithLogitsLoss()(torch.squeeze(out1[0][:,0]).view(-1),data.y.float())
+            loss2 = nn.BCEWithLogitsLoss()(torch.squeeze(out2[0][:,0]).view(-1),data.y.float())
 
-            bkgnn1 = out[0][:,0]
+            bkgnn1 = out1[0][:,0]
             bkgnn1 = bkgnn1[(data.y==0)]
-            bkgnn2 = out[0][:,1]
+            bkgnn2 = out2[0][:,0]
             bkgnn2 = bkgnn2[(data.y==0)]
             
             # debug
@@ -172,7 +183,8 @@ for epoch in range(0, config['training_pref']['max_epochs']):
         loss_train = np.append(loss_train, e_loss_train)
         partial_losses_train = np.vstack((partial_losses_train, e_partial_losses_train))
     
-    scheduler.step()
+    scheduler1.step()
+    scheduler2.step()
     
     # validation
     e_loss_val, e_partial_losses_val = test()
@@ -186,10 +198,15 @@ for epoch in range(0, config['training_pref']['max_epochs']):
     print('Epoch {:03d}, Loss: {:.8f}, ValLoss: {:.8f}'.format(epoch, e_loss_train, e_loss_val))
 
     # save model each epoch
-    state_dicts = {'model':suep.state_dict(),
-                   'opt':optimizer.state_dict(),
-                   'lr':scheduler.state_dict()} 
-    torch.save(state_dicts, os.path.join(out_dir, 'epoch-{}.pt'.format(epoch)))
+    state_dicts = {'model':suep1.state_dict(),
+                   'opt':optimizer1.state_dict(),
+                   'lr':scheduler1.state_dict()} 
+    torch.save(state_dicts, os.path.join(out_dir, 'model1-epoch-{}.pt'.format(epoch)))
+    
+    state_dicts = {'model':suep2.state_dict(),
+                   'opt':optimizer2.state_dict(),
+                   'lr':scheduler2.state_dict()} 
+    torch.save(state_dicts, os.path.join(out_dir, 'model2-epoch-{}.pt'.format(epoch)))
     
     # update loss plots
     keys = ['Total Loss: C1 + C2 + DiSco']
