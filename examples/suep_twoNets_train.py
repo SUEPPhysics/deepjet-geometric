@@ -6,6 +6,8 @@ import torch
 from torch_geometric.data import DataLoader
 from torch import nn
 from torch_geometric.nn import DataParallel
+import matplotlib
+matplotlib.use('Agg')
 
 from deepjet_geometric.datasets import SUEPV1
 from Disco import distance_corr
@@ -214,7 +216,7 @@ for epoch in range(0, config['training_pref']['max_epochs']):
                    [loss_val],
                    'total',
                    keys=keys)
-    keys = ['Classifier 1', 'CLassifier 2', 'DiSco']
+    keys = ['Classifier 1', 'lLassifier 2', 'DiSco']
     plot.draw_loss(partial_losses_train.T,
                    partial_losses_val.T,
                    'partials',

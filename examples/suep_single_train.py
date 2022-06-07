@@ -6,6 +6,8 @@ import torch
 from torch_geometric.data import DataLoader
 from torch import nn
 from torch_geometric.nn import DataParallel
+import matplotlib
+matplotlib.use('Agg')
 
 from deepjet_geometric.datasets import SUEPV1
 from Disco import distance_corr
