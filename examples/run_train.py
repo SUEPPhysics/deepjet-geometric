@@ -13,8 +13,8 @@ base_config = {
     }, 
     'training_pref': {
         'lambda_disco': 1,
-        'dico_var' : 'ntracks',
-        'batch_size_train': 1024,
+        'disco_var' : 'ntracks',
+        'batch_size_train': 512,
         'batch_size_validation': 1024,
         'max_epochs': 50,
         'learning_rate': 0.001,

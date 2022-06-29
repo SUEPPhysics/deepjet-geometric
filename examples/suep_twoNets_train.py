@@ -14,7 +14,7 @@ from Disco import distance_corr
 from SUEPNet import Net
 from utils import Plotting
 
-parser = argparse.ArgumentParser(description='Test.')
+parser = argparse.ArgumentParser(description='Two networks DiSco.')
 parser.add_argument('--config', action='store', type=str, help='Input configuration.')
 parser.add_argument('--out', action='store', type=str, help='Output path.')
 parser.add_argument('-f', '--force', action='store_true', help='Overwrites output directory if called.')
@@ -63,6 +63,7 @@ scheduler2 = torch.optim.lr_scheduler.StepLR(optimizer2,
                                             config['training_pref']['step_size'], 
                                             config['training_pref']['gamma'])
 
+
 def train(epoch):
     suep1.train()
     suep2.train()
@@ -81,7 +82,7 @@ def train(epoch):
         optimizer2.zero_grad()
         out1 = suep1(data.x_pf,
                     data.x_pf_batch)
-        out2 = suep1(data.x_pf,
+        out2 = suep2(data.x_pf,
                     data.x_pf_batch)
 
         # ABCDisco loss start
@@ -102,7 +103,7 @@ def train(epoch):
         loss_disco = config['training_pref']['lambda_disco']*distance_corr(bkgnn1,bkgnn2)
         loss = loss1 + loss2 + loss_disco
         # ABCDisco loss end
-
+        
         loss.backward()
         optimizer1.step()
         optimizer2.step()
