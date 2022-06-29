@@ -134,4 +134,7 @@ dmypy.json
 *.pt
 *.npy
 *.yml
+*.yaml
 *.out
+*.txt
+*.sh
