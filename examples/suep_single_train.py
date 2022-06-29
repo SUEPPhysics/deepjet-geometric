@@ -26,10 +26,9 @@ if os.path.isdir(out_dir):
     if args.force:
         print("Deleting " + out_dir)
         os.system("rm -r " + out_dir)
+        os.system("mkdir " + out_dir)
     else:
-        print("This directory already exists. Make a new name.")
-        sys.exit()
-os.system("mkdir " + out_dir)
+        print("This directory already exists. Hope it's not filled.")
 plot = Plotting(save_dir=out_dir)
     
 # input configuration
@@ -50,15 +49,11 @@ print("Running on", device)
 
 suep = Net(out_dim=config['model_pref']['out_dim'], 
            hidden_dim=config['model_pref']['hidden_dim']).to(device)
-#suep = DataParallel(suep)
-#suep.load_state_dict(torch.load(model_dir+"epoch-32.pt")['model'])
+
 optimizer = torch.optim.Adam(suep.parameters(), lr=config['training_pref']['learning_rate'])
-#optimizer = torch.optim.Adam(disco.parameters(), lr=0.001)
-#optimizer.load_state_dict(torch.load(model_dir+"epoch-32.pt")['opt'])
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 
                                             config['training_pref']['step_size'], 
                                             config['training_pref']['gamma'])
-#scheduler.load_state_dict(torch.load(model_dir+"epoch-32.pt")['lr'])
 
 def train(epoch):
     suep.train()
@@ -73,6 +68,7 @@ def train(epoch):
         print(str(counter*config['training_pref']['batch_size_train'])+' / '+str(len(train_loader.dataset)),end='\r')
         data = data.to(device)
         optimizer.zero_grad()
+        
         out = suep(data.x_pf,
                     data.x_pf_batch)
 
@@ -81,12 +77,17 @@ def train(epoch):
         
         bkgnn1 = out[0][:,0]
         bkgnn1 = bkgnn1[(data.y==0)]
-        ntracks = torch.cuda.FloatTensor([np.count_nonzero(data.x.cpu().numpy()[x,:,0]) for x in range(data.x.shape[0])])
-        bkgtracks = ntracks[(data.y==0)]
         sigmoid = torch.nn.Sigmoid()
         bkgnn1 = sigmoid(bkgnn1)
         
-        loss_disco = config['training_pref']['lambda_disco']*distance_corr(bkgnn1,bkgtracks)
+        if config['training_pref']['disco_var'] == 'ntracks':
+            ntracks = torch.cuda.FloatTensor([np.count_nonzero(data.x.cpu().numpy()[x,:,0]) for x in range(data.x.shape[0])])
+            bkg_dico_var = ntracks[(data.y==0)]
+        elif config['training_pref']['disco_var'] == 'S1':
+            S1 = data.S1
+            bkg_dico_var = S1[(data.y==0)]
+        
+        loss_disco = config['training_pref']['lambda_disco']*distance_corr(bkgnn1,bkg_dico_var)
         loss = loss1 + loss_disco
         # ABCDisco loss end
 
@@ -124,12 +125,17 @@ def test():
 
             bkgnn1 = out[0][:,0]
             bkgnn1 = bkgnn1[(data.y==0)]
-            ntracks = torch.cuda.FloatTensor([np.count_nonzero(data.x.cpu().numpy()[x,:,0]) for x in range(data.x.shape[0])])
-            bkgtracks = ntracks[(data.y==0)]
             sigmoid = torch.nn.Sigmoid()
             bkgnn1 = sigmoid(bkgnn1)
+            
+            if config['training_pref']['disco_var'] == 'ntracks':
+                ntracks = torch.cuda.FloatTensor([np.count_nonzero(data.x.cpu().numpy()[x,:,0]) for x in range(data.x.shape[0])])
+                bkg_dico_var = ntracks[(data.y==0)]
+            elif config['training_pref']['disco_var'] == 'S1':
+                S1 = data.S1
+                bkg_dico_var = S1[(data.y==0)]            
 
-            loss_disco = config['training_pref']['lambda_disco']*distance_corr(bkgnn1,bkgtracks)
+            loss_disco = config['training_pref']['lambda_disco']*distance_corr(bkgnn1,bkg_dico_var)
             loss = loss1 + loss_disco
             # ABCDisco loss end
             
