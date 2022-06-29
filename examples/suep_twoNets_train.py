@@ -26,10 +26,9 @@ if os.path.isdir(out_dir):
     if args.force:
         print("Deleting " + out_dir)
         os.system("rm -r " + out_dir)
+        os.system("mkdir " + out_dir)
     else:
-        print("This directory already exists. Make a new name.")
-        sys.exit()
-os.system("mkdir " + out_dir)
+        print("This directory already exists. Hope it's not filled.")
 plot = Plotting(save_dir=out_dir)
     
 # input configuration

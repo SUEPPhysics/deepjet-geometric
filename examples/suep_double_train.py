@@ -14,7 +14,7 @@ from Disco import distance_corr
 from SUEPNet import Net
 from utils import Plotting
 
-parser = argparse.ArgumentParser(description='Test.')
+parser = argparse.ArgumentParser(description='Double headed DiSco.')
 parser.add_argument('--config', action='store', type=str, help='Input configuration.')
 parser.add_argument('--out', action='store', type=str, help='Output path.')
 parser.add_argument('-f', '--force', action='store_true', help='Overwrites output directory if called.')
@@ -26,10 +26,9 @@ if os.path.isdir(out_dir):
     if args.force:
         print("Deleting " + out_dir)
         os.system("rm -r " + out_dir)
+        os.system("mkdir " + out_dir)
     else:
-        print("This directory already exists. Make a new name.")
-        sys.exit()
-os.system("mkdir " + out_dir)
+        print("This directory already exists. Hope it's not filled.")
 plot = Plotting(save_dir=out_dir)
     
 # input configuration
