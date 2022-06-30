@@ -1,4 +1,5 @@
 import os, sys, subprocess
+import argparse
 import yaml
 
 base_config = {
@@ -13,7 +14,7 @@ base_config = {
     }, 
     'training_pref': {
         'lambda_disco': 1,
-        'disco_var' : 'ntracks',
+        'disco_var' : 'S1',
         'batch_size_train': 512,
         'batch_size_validation': 1024,
         'max_epochs': 50,
@@ -41,39 +42,56 @@ base_runner = """#!/bin/bash
 SINGULARITYENV_CUDA_VISIBLE_DEVICES=0
 
 # define that training
-touch logs/run_$(SLURM_JOB_ID).sh
-echo "python {script} --config {config} --out {outDir}" > logs/run_%j.sh
+echo $SLURM_JOB_ID
+touch logs/run_$SLURM_JOB_ID.sh
+echo "python {script} --config {config} --out {outDir}" > logs/run_$SLURM_JOB_ID.sh
 
 # run that training
-singularity exec --nv --bind {dataDir} /work/submit/bmaier/sandboxes/geometricdl/ /bin/sh logs/run_%j.sh
+singularity exec --nv --bind {dataDir} /work/submit/bmaier/sandboxes/geometricdl/ /bin/sh logs/run_$SLURM_JOB_ID.sh
 
 srun hostname
 srun ls -hrlt
 """
 
+# script parameters
+parser = argparse.ArgumentParser(description='Famous Submitter')
+parser.add_argument("-f", "--force" , action="store_true", help="Recreate output directories.")
+options = parser.parse_args()
+
 # define configurations
 dataDir = '/work/submit/lavezzo/debug/'
 script = 'suep_single_train.py'
-lambdas = [1, 2, 3]
+disco_var = 'S1'
+lambdas = [1, 2, 5]
 
 # loop over configurations
 for l in lambdas:
     
     # define outDir string
     outDir = 'single_S1_l'+str(l)
+    
+    # create outDir
     if os.path.isdir(outDir): 
-        sys.exit("Directory already exists: " + outDir)
+        if not options.force:
+            sys.exit("Directory already exists: " + outDir)
+        else:
+            os.system("rm -rf "+str(outDir))
+            os.system("mkdir "+str(outDir))
     else:
         os.system("mkdir "+str(outDir))
     
     # modify the config dictionary and save it to outDir
     config = base_config.copy()
     config['training_pref']['lambda_disco'] = l
+    config['training_pref']['disco_var'] = disco_var
     configFile = outDir + '/config.yaml'
     with open(configFile, 'w') as f: yaml.dump(config, f)
     
     # modify the running script and save it to outDir
-    runner = base_runner.format(dataDir=dataDir, outDir=outDir, script=script, config=configFile)
+    runner = base_runner.format(dataDir=dataDir, 
+                                outDir=outDir, 
+                                script=script, 
+                                config=configFile)
     runnerFile = outDir + '/train.sh'
     with open(runnerFile, 'w') as f: f.write(runner)
     
