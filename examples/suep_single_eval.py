@@ -24,7 +24,7 @@ plot = Plotting(save_dir=out_dir)
 
 # input configuration
 files = os.listdir(out_dir)
-files = [f for f in files if '.yml' in f]
+files = [f for f in files if '.yml' in f or '.yaml' in f]
 if len(files) > 1: 
     print("Found multiple configuration .yml files in folder, leave only the correct one in it.")
     sys.exit()
@@ -40,7 +40,7 @@ model_path = out_dir + 'epoch-' + str(epochs[args.epoch]) + '.pt'
 print("Using model file", model_path)
 
 # initialize dataset
-data_test = SUEPV1(config['dataset']['validation'][0])
+data_test = SUEPV1(config['dataset']['validation'][0], obj=config['dataset']['obj'])
 test_loader = DataLoader(data_test, batch_size=config['training_pref']['batch_size_validation'],shuffle=True,
                          follow_batch=['x_pf'])
 
@@ -82,16 +82,21 @@ def evaluate():
             nn1 = sigmoid(nn1)
             
             # count number of tracks in each event
-            ntracks = torch.cuda.FloatTensor([np.count_nonzero(data.x.cpu().numpy()[x,:,0]) for x in range(data.x.shape[0])])
+            if config['training_pref']['disco_var'] == 'ntracks':
+                ntracks = torch.cuda.FloatTensor([np.count_nonzero(data.x.cpu().numpy()[x,:,0]) for x in range(data.x.shape[0])])
+                disco_var = ntracks
+            elif config['training_pref']['disco_var'] == 'S1':
+                S1 = data.S1
+                disco_var = S1
 
             # store predictions from each classifier and true class per event
             if counter == 1: 
                 results = np.array([nn1.cpu().numpy(), 
-                                    ntracks.cpu().numpy(),
+                                    disco_var.cpu().numpy(),
                                     data.y.cpu().numpy()])
             else:    
                 batch_results = np.array([nn1.cpu().numpy(), 
-                                    ntracks.cpu().numpy(),
+                                    disco_var.cpu().numpy(),
                                     data.y.cpu().numpy()])
                 results = np.hstack((results, batch_results))
                                 

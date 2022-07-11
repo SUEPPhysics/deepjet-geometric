@@ -36,8 +36,8 @@ config = yaml.safe_load(open(args.config))
 # save it to the output folder
 os.system("cp " + args.config + " " + out_dir)
 
-data_train = SUEPV1(config['dataset']['train'][0])
-data_test = SUEPV1(config['dataset']['validation'][0])
+data_train = SUEPV1(config['dataset']['train'][0], obj=config['dataset']['obj'])
+data_test = SUEPV1(config['dataset']['validation'][0], obj=config['dataset']['obj'])
 
 train_loader = DataLoader(data_train, batch_size=config['training_pref']['batch_size_train'],shuffle=True,
                           follow_batch=['x_pf'])
@@ -82,12 +82,18 @@ def train(epoch):
         
         if config['training_pref']['disco_var'] == 'ntracks':
             ntracks = torch.cuda.FloatTensor([np.count_nonzero(data.x.cpu().numpy()[x,:,0]) for x in range(data.x.shape[0])])
-            bkg_dico_var = ntracks[(data.y==0)]
+            bkg_disco_var = ntracks[(data.y==0)]
         elif config['training_pref']['disco_var'] == 'S1':
             S1 = data.S1
-            bkg_dico_var = S1[(data.y==0)]
+            bkg_disco_var = S1[(data.y==0)]
+        else:
+            error = """
+            Disco_var set to: {}
+            Needs to be one of: ntracks, S1
+            """.format(config['training_pref']['disco_var'])
+            sys.exit(error)
         
-        loss_disco = config['training_pref']['lambda_disco']*distance_corr(bkgnn1,bkg_dico_var)
+        loss_disco = config['training_pref']['lambda_disco']*distance_corr(bkgnn1,bkg_disco_var)
         loss = loss1 + loss_disco
         # ABCDisco loss end
 
@@ -130,12 +136,12 @@ def test():
             
             if config['training_pref']['disco_var'] == 'ntracks':
                 ntracks = torch.cuda.FloatTensor([np.count_nonzero(data.x.cpu().numpy()[x,:,0]) for x in range(data.x.shape[0])])
-                bkg_dico_var = ntracks[(data.y==0)]
+                bkg_disco_var = ntracks[(data.y==0)]
             elif config['training_pref']['disco_var'] == 'S1':
                 S1 = data.S1
-                bkg_dico_var = S1[(data.y==0)]            
+                bkg_disco_var = S1[(data.y==0)]            
 
-            loss_disco = config['training_pref']['lambda_disco']*distance_corr(bkgnn1,bkg_dico_var)
+            loss_disco = config['training_pref']['lambda_disco']*distance_corr(bkgnn1,bkg_disco_var)
             loss = loss1 + loss_disco
             # ABCDisco loss end
             

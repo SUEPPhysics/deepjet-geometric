@@ -24,7 +24,7 @@ plot = Plotting(save_dir=out_dir)
 
 # input configuration
 files = os.listdir(out_dir)
-files = [f for f in files if '.yml' in f]
+files = [f for f in files if '.yml' in f or '.yaml' in f]
 if len(files) > 1: 
     print("Found multiple configuration .yml files in folder, leave only the correct one in it.")
     sys.exit()
@@ -40,7 +40,7 @@ model_path = out_dir + 'epoch-' + str(epochs[args.epoch]) + '.pt'
 print("Using model file", model_path)
 
 # initialize dataset
-data_test = SUEPV1(config['dataset']['validation'][0])
+data_test = SUEPV1(config['dataset']['validation'][0], obj=config['dataset']['obj'])
 test_loader = DataLoader(data_test, batch_size=config['training_pref']['batch_size_validation'],shuffle=True,
                          follow_batch=['x_pf'])
 

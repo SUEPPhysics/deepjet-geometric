@@ -36,8 +36,8 @@ config = yaml.safe_load(open(args.config))
 # save it to the output folder
 os.system("cp " + args.config + " " + out_dir)
 
-data_train = SUEPV1(config['dataset']['train'][0])
-data_test = SUEPV1(config['dataset']['validation'][0])
+data_train = SUEPV1(config['dataset']['train'][0], obj=config['dataset']['obj'])
+data_test = SUEPV1(config['dataset']['validation'][0], obj=config['dataset']['obj'])
 
 train_loader = DataLoader(data_train, batch_size=config['training_pref']['batch_size_train'],shuffle=True,
                           follow_batch=['x_pf'])
