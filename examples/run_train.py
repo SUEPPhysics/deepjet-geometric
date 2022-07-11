@@ -100,6 +100,7 @@ for script in scripts:
                 config['training_pref']['disco_var'] = disco_var
                 config['training_pref']['max_epochs'] = 50
                 config['dataset']['obj'] = obj
+                if script == 'suep_double_train.py': config['model_pref']['out_dim'] = 2
                 configFile = outDir + '/config.yml'
                 with open(configFile, 'w') as f: yaml.dump(config, f)
 

@@ -178,7 +178,7 @@ class Plotting():
 
     def draw_precision_recall(self, 
                             y_preds,
-                            y_test,
+                            y_tests,
                             name='',
                             keys=['Model 1', 'Model 2']):
         
@@ -186,12 +186,21 @@ class Plotting():
         ax = fig.subplots()
         cmap = plt.cm.jet(np.linspace(0, 1, len(keys)+1))
         
-        if len(y_preds) == len(y_test):
-            pre, rec, _ = precision_recall_curve(y_test, y_preds)
-            ax.plot(rec, pre, label=keys[0], color=cmap[0])
+        if len(y_preds) == len(y_tests):
+            # y_preds and y_tests are both list of lists of predictions/true values
+            if type(y_tests[0]) is np.ndarray and type(y_preds[0]) is np.ndarray:
+                for key, y_pred, y_test, color in zip(keys, y_preds, y_tests, cmap):
+                    pre, rec, _ = precision_recall_curve(y_test, y_pred)
+                    ax.plot(rec, pre, label=key, color=color)
+            # y_preds and y_tests are each one list of floats
+            else:
+                pre, rec, _ = precision_recall_curve(y_tests, y_preds)
+                ax.plot(rec, pre, label=keys[0], color=cmap[0])
+        # plot multiple predictions for the same y_tests
+        # i.e. y_preds = [array of predictions from model 1, ditto for model 2, ...]
         else:   
             for key, y_pred, color in zip(keys, y_preds, cmap):
-                pre, rec, _ = precision_recall_curve(y_test, y_pred)
+                pre, rec, _ = precision_recall_curve(y_tests, y_pred)
                 ax.plot(rec, pre, label=key, color=color)
 
         ax.set_xlabel("Precision")
