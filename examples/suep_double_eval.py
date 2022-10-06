@@ -9,6 +9,7 @@ from torch import nn
 from deepjet_geometric.datasets import SUEPV1
 from SUEPNet import Net
 from Disco import distance_corr
+import utils
 from utils import Plotting
 
 parser = argparse.ArgumentParser(description='Test.')
@@ -23,21 +24,10 @@ print("Validating model", out_dir)
 plot = Plotting(save_dir=out_dir)
 
 # input configuration
-files = os.listdir(out_dir)
-files = [f for f in files if '.yml' in f or '.yaml' in f]
-if len(files) > 1: 
-    print("Found multiple configuration .yml files in folder, leave only the correct one in it.")
-    sys.exit()
-config = yaml.safe_load(open(out_dir+files[0]))
-print("Loaded configuration", out_dir+files[0])
+config = utils.loadConfigFromDir(out_dir)
 
 # pick epoch
-epochs = os.listdir(out_dir)
-epochs = [f for f in epochs if 'epoch' in f]
-epochs = [int(e.split('epoch-')[-1].split('.pt')[0]) for e in epochs]
-epochs.sort()
-model_path = out_dir + 'epoch-' + str(epochs[args.epoch]) + '.pt'
-print("Using model file", model_path)
+model_path = utils.getModelPath(out_dir, args.epoch)
 
 # initialize dataset
 data_test = SUEPV1(config['dataset']['validation'][0], obj=config['dataset']['obj'])

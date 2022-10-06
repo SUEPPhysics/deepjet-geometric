@@ -127,8 +127,8 @@ def test():
             out = suep(data.x_pf,
                        data.x_pf_batch)
 
-            loss1 = nn.BCEWithLogitsLoss()(torch.squeeze(out[0][:,0]).view(-1),data.y.float())
-            loss2 = nn.BCEWithLogitsLoss()(torch.squeeze(out[0][:,1]).view(-1),data.y.float())
+            loss1 = nn.BCEWithLogitsLoss(reduction='mean')(torch.squeeze(out[0][:,0]).view(-1),data.y.float())
+            loss2 = nn.BCEWithLogitsLoss(reduction='mean')(torch.squeeze(out[0][:,1]).view(-1),data.y.float())
 
             bkgnn1 = out[0][:,0]
             bkgnn1 = bkgnn1[(data.y==0)]

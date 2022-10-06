@@ -15,8 +15,8 @@ from SUEPNet import Net
 from utils import Plotting
 
 parser = argparse.ArgumentParser(description='Single DiSco.')
-parser.add_argument('--config', action='store', type=str, help='Input configuration.')
-parser.add_argument('--out', action='store', type=str, help='Output path.')
+parser.add_argument('--config', action='store', type=str, help='Input configuration.', required=True)
+parser.add_argument('--out', action='store', type=str, help='Output path.', required=True)
 parser.add_argument('-f', '--force', action='store_true', help='Overwrites output directory if called.')
 args = parser.parse_args()
 

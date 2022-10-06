@@ -5,9 +5,9 @@ import yaml
 base_config = {
     'dataset': {
         'obj': 'PFcand',
-        'train': ['/work/submit/lavezzo/debug/'], 
-        'validation': ['/work/submit/lavezzo/debug/val/'], 
-        'test': ['/work/submit/lavezzo/debug/val/']
+        'train': ['/work/submit/lavezzo/offline_ML/'], 
+        'validation': ['/work/submit/lavezzo/offline_ML/val/'], 
+        'test': ['/work/submit/lavezzo/offline_ML/val/']
     }, 
     'model_pref': {
         'hidden_dim': 16,
@@ -60,14 +60,22 @@ parser.add_argument("-f", "--force" , action="store_true", help="Recreate output
 options = parser.parse_args()
 
 # define configurations
-dataDir = '/work/submit/lavezzo/debug/'
-scripts = ['suep_double_train.py']
-disco_vars = ['S1','ntracks']
-objs = ['Pfcand', 'bPfcand']
-lambdas = [1, 2, 5]
+dataDir = '/work/submit/lavezzo/private_samples/'
+outDir_base = 'offline_private_samples_v3/'
+scripts = ['suep_single_train.py']
+disco_vars = ['S1']
+objs = ['bPfcand']
+double_lambdas = []
+single_lambdas = [1, 3]
+max_epochs = 50
+
+# make out dir
+if not os.path.isdir(outDir_base): os.mkdir(outDir_base)
 
 # loop over configurations
 for script in scripts:
+    if 'single' in script: lambdas = single_lambdas
+    elif 'double' in script: lambdas = double_lambdas 
     for l in lambdas:
         for obj in objs:
             for disco_var in disco_vars:
@@ -78,9 +86,9 @@ for script in scripts:
                     if disco_var != disco_vars[0]: 
                         continue
                     else:
-                        outDir = script.split("_")[1] + "_l" + str(l) + "_" + obj
+                        outDir = outDir_base+script.split("_")[1] + "_l" + str(l) + "_" + obj
                 else:
-                    outDir = script.split("_")[1] + "_l" + str(l) + "_" + obj + "_" + disco_var
+                    outDir = outDir_base+script.split("_")[1] + "_l" + str(l) + "_" + obj + "_" + disco_var
                 
                 print(outDir)
 
@@ -98,7 +106,10 @@ for script in scripts:
                 config = base_config.copy()
                 config['training_pref']['lambda_disco'] = l
                 config['training_pref']['disco_var'] = disco_var
-                config['training_pref']['max_epochs'] = 50
+                config['training_pref']['max_epochs'] = max_epochs
+                config['dataset']['train'] = [dataDir]
+                config['dataset']['validation'] = [dataDir + '/val/']
+                config['dataset']['test'] = [dataDir  + '/val/']
                 config['dataset']['obj'] = obj
                 if script == 'suep_double_train.py': config['model_pref']['out_dim'] = 2
                 configFile = outDir + '/config.yml'

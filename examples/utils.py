@@ -1,11 +1,11 @@
+import os, sys
 import argparse
-import h5py
 import logging
-import os
+import yaml
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-import os
+import h5py
 
 from matplotlib.lines import Line2D
 from matplotlib.offsetbox import OffsetImage
@@ -555,3 +555,22 @@ def set_logging(name, filename, verbose):
     logger.addHandler(ch)
 
     return logger
+
+def loadConfigFromDir(out_dir):
+    files = os.listdir(out_dir)
+    files = [f for f in files if '.yml' in f or '.yaml' in f]
+    if len(files) > 1: 
+        logging.error("Found multiple configuration .yml files in folder, leave only the correct one in it.")
+        sys.exit()
+    config = yaml.safe_load(open(out_dir+files[0]))
+    logging.info("Loaded configuration {}".format(out_dir+files[0]))
+    return config
+
+def getModelPath(out_dir, epoch):
+    epochs = os.listdir(out_dir)
+    epochs = [f for f in epochs if 'epoch' in f]
+    epochs = [int(e.split('epoch-')[-1].split('.pt')[0]) for e in epochs]
+    epochs.sort()
+    model_path = out_dir + 'epoch-' + str(epochs[epoch]) + '.pt'
+    logging.info("Loaded model {}".format(model_path)) 
+    return model_path
